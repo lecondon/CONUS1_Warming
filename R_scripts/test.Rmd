@@ -11,16 +11,122 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-First getting the data we need to evaluate uins irods commands
-```{bash}
-ils
+First setting up the run informaiton and directory paths
+```{r setup}
+
+plotdir="/home/rstudio/CONUS1_Warming/Figures"
+datadir="/iplant/home/shared/avra/CONUS_1.0/Simulations/"
+localdir="/home/rstudio/data1"
+system(paste("mkdir ", localdir, sep=""))
+
+runlist=c('Baseline','2Deg_Warming','4Deg_Warming')
+ylist=4:7
+nyear=length(ylist)
+nrun=length(runlist)
+
+#Domain info 
+nx=3342
+ny=1888
+nval=nx*ny
+
+#make xy arrays
+ncell=nx*ny
+x=rep(1:nx, ny)
+y=rep(1:ny, each=nx)
+
+#Making xy vectors with the UTM coordinates
+xll=-1884563.7545319
+yll= -605655.0023757
+xUTM=x*1000+xll
+yUTM=y*1000+yll
+
+# Latent Heat of vaporization 
+lvap= 2.5104*10^6 # J/kg n- this is the value for 'hvap' in pfsimulator/clm/clm_varcon.F90 
+#to convert from W/m2 to mm/hr
+# w/m2= J/(s*m2) 
+# LH (j/(s*m2)) / lvap (J/kg) = kg/(m2*s) /(1000 kg/m3) = m *1000 =mm
+# so just multiply by 3600/lvap to get mm   
+```
+
+Get the files that you will need
+```{r iget}
+#Yearly LH flux
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		print(paste("Year:", ylist[y]))
+		fin=sprintf("%s%s/Processed_Outputs/Year%s/LH.yearly.bin", datadir,runlist[r], ylist[y])
+		fout=sprintf("%s/%s.Year%s.LH.yearly.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		system(paste('iget -KrfP', fin , fout, sep=" "))
+	} #end for y
+} #end for r
+
+#Month12 Storage
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		print(paste("Year:", ylist[y]))
+		fin=sprintf("%s%s/Processed_Outputs/Year%s/storage.monthly.12.bin", datadir,runlist[r], ylist[y])
+		fout=sprintf("%s/%s.Year%s.storage.monthly.12.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		system(paste('iget -KrfP', fin , fout, sep=" "))
+	} #end for y
+} #end for r
+```
+
+
+Read in the latent heat flux data from the binary files
+```{r read_lh}
+#Read in the LH flux data - this is annual average [w/m2]
+lh=array(NA, dim=c(nval, nyear, nrun))
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		fin=sprintf("%s/%s.Year%s.LH.yearly.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		to.read = file(fin, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		lh[,y,r]=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)	
+	} #end for y
+} #end for r
+
+#Read in the year end storage - month 12 average storage m3
+storend=array(NA, dim=c(nval, nyear, nrun))
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		print(paste("Year:", y))
+		fin=sprintf("%s/%s.Year%s.storage.monthly.12.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		to.read = file(fin, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		storend[,y,r]=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)	
+	} #end for y
+} #end for r
+```
+
+Next read in the ending storage
+```{r}
 
 ```
 
 
-```{r cars}
-summary(cars)
+Some conversions
+```{r}
+#convert from annual average W/m2
+lhmm=lh/lvap*3600*24*365 
+
+#Get the simulation totals
+lhmm_tot=matrix(NA, nrow=nval, ncol=nrun)
+for(r in 1:nrun){ 
+	lhmm_tot[,r]=apply(lhmm[,,r], 1, sum )
+}
 ```
+
+
 
 ## Including Plots
 
@@ -29,5 +135,3 @@ You can also embed plots, for example:
 ```{r pressure, echo=FALSE}
 plot(pressure)
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
