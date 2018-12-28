@@ -1,16 +1,36 @@
+---
+title: "GW_Storage_Analysis"
+author: "Laura Condon"
+date: "12/26/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="/Users/laura/Documents/CONUS/Warming_Runs")
+
+
+#install.packages('rgdal')
 rm(list=ls())
-setwd("/Users/laura/Documents/CONUS/Warming_Runs")
 library(raster)
 library(maptools)
 library(fields)
 library(RColorBrewer)
+library(rgdal)
+
 source("~/Documents/R_Functions/PFB-ReadFcn.R")
 
-######################
-#Setup
 plotdir="./Figures_December18/"
-
 dir="./Simulation_Averages"
+```
+
+## General setup
+
+Setting up domain variables
+
+```{r domain_setup}
 runlist=c(0,2,4)
 ylist=4:7
 nyear=length(ylist)
@@ -40,17 +60,25 @@ lvap= 2.5104*10^6 # J/kg n- this is the value for 'hvap' in pfsimulator/clm/clm_
 # w/m2= J/(s*m2) 
 # LH (j/(s*m2)) / lvap (J/kg) = kg/(m2*s) /(1000 kg/m3) = m *1000 =mm
 # so just multiply by 3600/lvap to get mm   
+```
 
-##########################################
-#Some useful layers to include in plots
-domainshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/Domain_shp/Domain_short.shp")
-regshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/Regions_shp/Regions_Project.shp")
+Shape files to include
+```{r read_shape, results='hide'}
+#domainshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/Domain_shp/Domain_short.shp")
+domainshp=readOGR("/Users/laura/Documents/CONUS/Shape_Files/Domain_shp/Domain_short.shp")
+#regshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/Regions_shp/Regions_Project.shp")
+regshp=readOGR("/Users/laura/Documents/CONUS/Shape_Files/Regions_shp/Regions_Project.shp")
 #statshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/States/states_epa_project.shp")
 statshp=readOGR("/Users/laura/Documents/CONUS/CONUS-GIS/States/states_epa_project.shp")
-greatlakes=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes", proj4string=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
+#greatlakes=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes", proj4string=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
+#greatlakes=readOGR("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes.shp", p4s=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
 #Project to UTM
-greatlakesUTM=spTransform(greatlakes,CRS("+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs "))
+#greatlakesUTM=spTransform(greatlakes,CRS("+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs "))
 
+```
+
+Setting up HUCS
+```{r HUC_setup}
 ##########################################
 #Merge US and Canadian HUCs and format into a vector for grouping
 #Read in the HUCS
@@ -97,24 +125,31 @@ HUC_Merge[fixlist]=NHN_vec[fixlist]+3000 #I created a numbering system for the c
 #rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM,HUC_Merge))
 #plot(rastertemp1, maxpixels=(nx*ny*10), colNA='lightblue',  col=rev(brewer.pal(name="Spectral", n=11)), legend=T, main="Baseline PET", axes=F, zlim=c(0,4400))
 
+```
 
-##########################################
-#Other layers
-#Porosity for calculating PET
-porosity=readpfb("./Simulation_Averages/CONUS.5layer.pfclm.PumpHS.run4.out.porosity.pfb", verbose=F)
-porosity1=as.vector(porosity[,,5])
-image.plot(porosity1)
-
-#Read in the precipitation
+## Reading Inputs
+Read Precipitation
+```{r precip_read}
 fin="/Users/laura/Documents/CONUS/Transient_Runs/Forcing_Averages/precip.yearly.bin"
 to.read = file(fin, "rb")
 header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 precip=readBin(to.read, double(), endian = "little", size=8, n=nval)
 close(to.read)
 
-#I think the units of precip are mm/s and the yearly file is average
+#Units of precip are mm/s and the yearly file is average
 precipmm=precip*3600
+```
 
+Read Porosity:
+```{r porosity_read}
+porosity=readpfb("/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/CONUS.5layer.pfclm.PumpHS.run4.out.porosity.pfb", verbose=F)
+porosity1=as.vector(porosity[,,5])
+#rm(porosity)
+#image.plot(porosity1)
+```
+
+Read Annual LH Flux:
+```{r LH_read}
 #########################
 #Reading inputs
 #Read in the LH flux data - this is annual average [w/m2]
@@ -142,6 +177,29 @@ for(r in 1:nrun){
 	lhmm_tot[,r]=apply(lhmm[,,r], 1, sum )
 }
 
+```
+
+Read Annual Soil Moisture:
+```{r SM_read}
+sm=array(NA, dim=c(nval, nyear, nrun))
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		print(paste("Year:", y))
+		
+		fin=sprintf("%s/Temp%d_Year%d/SM.yearly.bin", dir,runlist[r], ylist[y])
+		print(fin)
+		to.read = file(fin, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		sm[,y,r]=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)	
+	} #end for y
+} #end for r
+
+```
+
+Read Ending storage:
+```{r stor_read}
 #Read in the year end storage - month 12 average storage m3
 storend=array(NA, dim=c(nval, nyear, nrun))
 for(r in 1:nrun){
@@ -161,32 +219,35 @@ for(r in 1:nrun){
 storendmm=storend/(1000^2)*1000 #convert from m^3 to mm
 stordif=storendmm[,4,2:nrun]-storendmm[,4,1] #difference in ending storage
 
-#########################
-#Caclculate PET using Beta
+```
 
+Calcualte PET:
+```{r PET_calc}
 #Cacluate Beta and PET based on Beta
 beta=PET=array(NA, dim=c(nval, nyear, nrun))
 for(r in 1:nrun){
   print(r)
   for(y in 1:nyear){
-      beta[,y,r]=((lhmm[,y,r]/porosity1)-0.2)/0.8
+      beta[,y,r]=((sm[,y,r]/porosity1)-0.2)/0.8
       beta[(beta[,y,r]<0),y,r]=0 #getting rid of the negative values where the saturation is less than sres
       PET[,y,r]=lhmm[,y,r]/beta[,y,r]
   }
 }
+```
 
-#########################
+## Aggregating by HUC
+```{r HUC_agg}
 #Aggregate by HUC
 HUC_list=sort(unique(HUC_Merge))
 nhuc=length(HUC_list)
 
 #HUC Summary matrices
 precipmm_HUC=area_HUC=rep(0, nhuc) #Summary matrix with a row for every HUC
-lhmm_HUC=storendmm_HUC=array(0, c(nhuc, nyear, nrun))
+lhmm_HUC=storendmm_HUC=PET_HUC=array(0, c(nhuc, nyear, nrun))
 stordif_HUC=matrix(0, nrow=nhuc, ncol=(nrun-1))
 
 #HUG grid matrices
-lhmm_Hgrid=storendmm_Hgrid=array(0, c(nval, nyear, nrun)) #matrix assigning the HUC sum value to every grid cell
+lhmm_Hgrid=storendmm_Hgrid=PET_Hgrid=array(0, c(nval, nyear, nrun)) #matrix assigning the HUC sum value to every grid cell
 stordif_Hgrid=array(0, c(nval, nrun-1) )#matrix assigning the HUC sum value to every grid cell
 precipmm_Hgrid=area_Hgrid=rep(0, nval)
                      
@@ -197,7 +258,7 @@ for(h in 1:nhuc){
   ilist=which(HUC_Merge==hnum)
   
   #Recording the HUC sums in the HUC matrix
-  area_HUC=length(ilist)
+  area_HUC[h]=length(ilist)
   
   if(length(ilist)>1){
     #Precipitation
@@ -209,6 +270,9 @@ for(h in 1:nhuc){
       for(y in 1:nyear){
         lhmm_HUC[h,y,r]=sum(lhmm[ilist, y, r])
         lhmm_Hgrid[ilist,y,r]=lhmm_HUC[h,y,r]
+        
+        PET_HUC[h,y,r]=sum(PET[ilist, y, r])
+        PET_Hgrid[ilist,y,r]=PET_HUC[h,y,r]
           
         storendmm_HUC[h,y,r]=sum(storendmm[ilist, y, r])
         storendmm_Hgrid[ilist,y,r]=storendmm_HUC[h,y,r]
@@ -224,26 +288,26 @@ for(h in 1:nhuc){
   
 }
 
-#zeroing out the valuse for the -999 HUC
+#zeroing out the values for the -999 HUC
 stordif_HUC[1,]=NA
 storendmm_HUC[1,,]=NA
 lhmm_HUC[1,,]=NA
+PET_HUC[1,,]=NA
 precipmm_HUC[1]=NA
 
 ilist=which(HUC_Merge==HUC_list[1])
 stordif_Hgrid[ilist,]=NA
 storendmm_Hgrid[ilist,,]=NA
 lhmm_Hgrid[ilist,,]=NA
+PET_Hgrid[ilist,,]=NA
 precipmm_Hgrid[ilist]=NA
+```
 
-
-#########################
-#Analysis and plotting
-
-####################
-# Year 4 ending storage differences
-fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
-pdf(fout, width=8.1, height=8.9)
+## Gridded Plotting
+Ending storage plot
+```{r storend_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
+#fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
+#pdf(fout, width=8.1, height=8.9)
 par(mfrow=c(2,1), mar=c(1,2,3,3))
 
 maxz=0
@@ -263,13 +327,14 @@ plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="4 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
 
-dev.off()
+#dev.off()
 
+```
 
-####################
-# 4 year total LH differences
-fout=paste(plotdir, "LH_Total_Diff.pdf", sep="")
-pdf(fout, width=8.1, height=8.9)
+Total LH Flux plot
+```{r LHtot_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
+#fout=paste(plotdir, "LH_Total_Diff.pdf", sep="")
+#pdf(fout, width=8.1, height=8.9)
 par(mfrow=c(2,1), mar=c(1,2,3,3))
 
 maxz=1000
@@ -289,13 +354,13 @@ plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=10), colNA='lightblue',  legend=T, main="2 Degree Total LH Difference [mm]", axes=F, zlim=c(minz, maxz))
 
-dev.off()
+#dev.off()
+```
 
-
-####################
-# Storage change/LH increase
-fout=paste(plotdir, "Storage_LH_Ratio.pdf", sep="")
-pdf(fout, width=8.1, height=8.9)
+Storage change divided by LH flux increase plot
+```{r StorLH_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
+#fout=paste(plotdir, "Storage_LH_Ratio.pdf", sep="")
+#pdf(fout, width=8.1, height=8.9)
 par(mfrow=c(2,1), mar=c(1,2,3,3))
 
 maxz=0.5
@@ -315,10 +380,43 @@ plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=10), colNA='lightblue',  legend=T, main="2 Degree stordif/LH dif[mm]", axes=F, zlim=c(minz, maxz))
 
-dev.off()
+#dev.off()
+```
 
+## HUC Plotting
+```{r AI_HUC, warning=FALSE}
 
+  AI_Hgrid=PET_Hgrid[,4,1]/precipmm_Hgrid
 
+  #AI_HUC=PET_HUC[,4,3]/lhmm_HUC[,4,3]
+  #AI_Hgrid=PET[,4,1]/precipmm
+  maxz=7
+  minz=0
 
+  #color list if you want to just break at o.8 and 1.2
+  #breaklist=c(0, 0.8, 1, 1.2,7)
+  #collist=rev(c('#e08214', '#fdb863', '#b2abd2', '#8073ac'))
+  
+  #collist=c('#eff3ff', '#abdda4', '#fdae61', "#fee5d9" )
+  #collist=rev(c('#e66101', '#fdb863', '#b2abd2', '#5e3c99'))
+  #collist=rev(c('#fdb863', '#fee0b6', '#d8daeb', '#b2abd2'))
+  #collist=(rev(brewer.pal(name="Spectral", n=4)))
 
+  #complete color list
+  breaklist=c(0, 0.2, 0.4, 0.6, 0.8, 1,1.5,2,3,5,7)
+  collist=rev(brewer.pal(name="Spectral", n=10))
+
+  #Baseline
+  plottemp=AI_Hgrid
+  plottemp[which(plottemp>maxz)]=maxz
+  plottemp[which(plottemp<minz)]=minz
+  rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+    par(mar=c(1,2,3,5))
+  image(rastertemp1, maxpixels=(nx*ny*10), col=collist,  main="a) Baseline AI (PET/P)", axes=F, zlim=c(minz, maxz), breaks=breaklist, xlab="", ylab="")
+#plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+#plot(statshp, add=T, border='black')
+box()
+image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2, smallplot= c(.87,0.93,0.05,0.85)) #, legend.args=list( text="AI",cex=1, side=4, line=1)) #use if you do the 0.8, 1.2 
+
+```
 
