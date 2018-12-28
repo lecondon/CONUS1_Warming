@@ -1,0 +1,167 @@
+---
+title: "Storage Change Anlaysis"
+author: "Laura Condon"
+date: "12/21/2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages('RColorBrewer') #Problem can't inesll packages
+#library('RColorBrewer')
+```
+
+First setting up the run informaiton and directory paths
+```{r setup echo = 'FALSE'}
+
+runlist=c('Baseline','2Deg_Warming','4Deg_Warming')
+ylist=4:7
+
+plotdir="/home/rstudio/CONUS1_Warming/Figures"
+plotdirout="/iplant/home/shared/avra/CONUS_1.0/Warming_Analysis/Plots"
+datadir="/iplant/home/shared/avra/CONUS_1.0/Simulations/"
+localdir="/home/rstudio/data1"
+system(paste("mkdir ", localdir, sep=""))
+
+#Domain info 
+nx=3342
+ny=1888
+nval=nx*ny
+
+
+# Latent Heat of vaporization 
+lvap= 2.5104*10^6 # J/kg n- this is the value for 'hvap' in pfsimulator/clm/clm_varcon.F90 
+#to convert from W/m2 to mm/hr
+# w/m2= J/(s*m2) 
+# LH (j/(s*m2)) / lvap (J/kg) = kg/(m2*s) /(1000 kg/m3) = m *1000 =mm
+# so just multiply by 3600/lvap to get mm   
+```
+
+Loop through and calculate daily PET
+```{r iget, echo = FALSE}
+#Yearly LH flux
+r=1
+y=4
+
+for(d in 1:2){
+		print(paste("Day", d))
+  
+    #Get LH flux
+		fin=sprintf("%s%s/Processed_Outputs/Year%s/LH.daily.%03d.bin", datadir,runlist[r], ylist[y], d)
+		fout=sprintf("%s/%s.Year%s.LH.daily.%03d.bin", localdir,runlist[r], ylist[y],d)
+		print(fin)
+		print(fout)
+		system(paste('iget -KrfP', fin , fout, sep=" "))
+		
+		# Read LH into R
+		to.read = file(fout, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		lh=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)
+		
+		#remove file to save space in app
+		system(paste('rm', fout, sep=" "))
+		
+		#Get Soil Moisture
+		fin=sprintf("%s%s/Processed_Outputs/Year%s/SM.daily.%03d.bin", datadir,runlist[r], ylist[y], d)
+		fout=sprintf("%s/%s.Year%s.SM.daily.%03d.bin", localdir,runlist[r], ylist[y],d)
+		print(fin)
+		print(fout)
+		system(paste('iget -KrfP', fin , fout, sep=" "))
+		
+		#Read Soil Moisture into R
+		to.read = file(fout, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		sm=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)
+		
+		#remove file to save space in app
+		system(paste('rm', fout, sep=" "))
+	  
+		#convert lh to mm from daily average W/m2
+    lhmm=lh/lvap*3600*24 
+		
+		#Calculate beta and PET
+    beta=PET=rep(0,nval)
+    beta=((sm/porosity1)-0.2)/0.8
+    beta[(beta<0)]=0 #getting rid of the negative values where the saturation is less than sres
+    PET=lhmm/beta
+  
+} #end for d
+
+```
+
+Read in the latent heat flux and ending storage
+```{r read_bins echo = FALSE}
+#Read in the LH flux data - this is annual average [w/m2]
+lh=array(NA, dim=c(nval, nyear, nrun))
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		fin=sprintf("%s/%s.Year%s.LH.yearly.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		to.read = file(fin, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		lh[,y,r]=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)	
+	} #end for y
+} #end for r
+
+#Read in the year end storage - month 12 average storage m3
+storend=array(NA, dim=c(nval, nyear, nrun))
+for(r in 1:nrun){
+	print(r)
+	for(y in 1:nyear){
+		print(paste("Year:", y))
+		fin=sprintf("%s/%s.Year%s.storage.monthly.12.bin", localdir,runlist[r], ylist[y])
+		print(fin)
+		to.read = file(fin, "rb")
+		header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+		storend[,y,r]=readBin(to.read, double(), endian = "little", size=8, n=nval)
+		close(to.read)	
+	} #end for y
+} #end for r
+```
+
+Some conversions
+```{r conversions}
+#convert from annual average W/m2
+lhmm=lh/lvap*3600*24*365 
+
+#Get the simulation totals
+lhmm_tot=matrix(NA, nrow=nval, ncol=nrun)
+for(r in 1:nrun){ 
+	lhmm_tot[,r]=apply(lhmm[,,r], 1, sum )
+}
+
+storendmm=storend/(1000^2)*1000 #convert from m^3 to mm
+stordif=storendmm[,4,2:nrun]-storendmm[,4,1] #difference in ending storage
+```
+
+Now make a plot!!
+```{r plottest echo='FALSE'}
+# Year 4 ending storage differences
+#fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
+#pdf(fout, width=8.1, height=8.9)
+#par(mfrow=c(2,1), mar=c(1,2,3,3))
+
+maxz=0
+minz=-100
+
+#2 degree 
+plottemp=stordif[,1]
+plottemp[which(plottemp>maxz)]=maxz
+plottemp[which(plottemp<minz)]=minz
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="2 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+
+#dev.off()
+
+##NOTE: Problem here - cant get the icd to work from within R. Seems to only work within the terminal
+#For now just embedding this plot rather than writing it out
+#system(paste("icd", plotdirout))
+#system(paste("iput", fout))
+
+```
