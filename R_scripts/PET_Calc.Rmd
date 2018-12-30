@@ -118,7 +118,7 @@ for (r in 1:1){
 	  	  close(to.write)
 		  
 	  	  #Transfer 
-		    system(paste('icd', fpath, sep=" "))
+		    #system(paste('icd', fpath, sep=" "))
 		    system(paste("iput -f ", fwrite,  fcyv, sep=" "))
 		  
 		    #Remove locally
@@ -141,7 +141,7 @@ for (r in 1:1){
 	    	close(to.write)
 		  
 	  	  #Transfer 
-		    system(paste('icd', fpath, sep=" "))
+		    #system(paste('icd', fpath, sep=" "))
 		    system(paste("iput -f ", fwrite,  fcyv, sep=" "))
 		  
 		    #Remove locally
@@ -169,7 +169,7 @@ for (r in 1:1){
   writeBin(beta, to.write, size=8, endian="little")
   close(to.write)
   #Transfer Beta
-  system(paste('icd', fpath, sep=" "))
+  #system(paste('icd', fpath, sep=" "))
   system(paste("iput -f ", fwrite,  fcyv, sep=" "))
   
   #Remove locally
