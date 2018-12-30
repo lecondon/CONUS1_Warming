@@ -59,6 +59,7 @@ for (r in 1:1){
   for(y in 4:1){
     print(paste("***Starting Year", ylist[y], "****"))
     PET_ann=PET_mon=rep(0, nval)
+    mon=1
     
     for(d in 1:365){
 		  print(paste("Day", d))
