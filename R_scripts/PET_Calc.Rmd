@@ -56,8 +56,9 @@ dayend=monthends[mon]
 for (r in 1:1){
   print(paste("***Starting", runlist[r], "run****"))
   
-  for(y in 2:3){
+  for(y in 4:1){
     print(paste("***Starting Year", ylist[y], "****"))
+    PET_ann=PET_mon=rep(0, nval)
     
     for(d in 1:365){
 		  print(paste("Day", d))
