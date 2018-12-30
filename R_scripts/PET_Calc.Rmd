@@ -114,7 +114,11 @@ for (r in 1:1){
         #write 
         to.write = file(fwrite, "wb")
 			    writeBin(as.integer(c(nx,ny,1)), to.write, size=4, endian="little")
-			    writeBin(beta, to.write, size=8, endian="little")
+			    if(ovar==1){
+           writeBin(beta, to.write, size=8, endian="little")
+         }else{
+           writeBin(PET, to.write, size=8, endian="little")
+         }
 	  	  close(to.write)
 		  
 	  	  #Transfer 
@@ -137,7 +141,7 @@ for (r in 1:1){
         #write 
         to.write = file(fwrite, "wb")
 			   writeBin(as.integer(c(nx,ny,1)), to.write, size=4, endian="little")
-			   writeBin(beta, to.write, size=8, endian="little")
+			   writeBin(PET_mon, to.write, size=8, endian="little")
 	    	close(to.write)
 		  
 	  	  #Transfer 
@@ -166,7 +170,7 @@ for (r in 1:1){
   #write Beta
   to.write = file(fwrite, "wb")
   writeBin(as.integer(c(nx,ny,1)), to.write, size=4, endian="little")
-  writeBin(beta, to.write, size=8, endian="little")
+  writeBin(PET_ann, to.write, size=8, endian="little")
   close(to.write)
   #Transfer Beta
   #system(paste('icd', fpath, sep=" "))
