@@ -311,6 +311,12 @@ storendmm_Hgrid[ilist,,]=NA
 lhmm_Hgrid[ilist,,]=NA
 PET_Hgrid[ilist,,]=NA
 precipmm_Hgrid[ilist]=NA
+
+#Get the LH simulation totals over all 4 years
+lhmm_Hgridtot=matrix(NA, nrow=nval, ncol=nrun)
+for(r in 1:nrun){ 
+	lhmm_Hgridtot[,r]=apply(lhmm_Hgrid[,,r], 1, sum )
+}
 ```
 
 ## Gridded Plotting
@@ -410,20 +416,20 @@ plottemp[which(plottemp>maxz)]=maxz
 plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 image(rastertemp1, maxpixels=(nx*ny*10), col=collist,  main="Baseline AI (PET/P)", axes=F, zlim=c(minz, maxz), breaks=breaklist, xlab="", ylab="")
-plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-plot(statshp, add=T, border='black')
+#plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
+#plot(statshp, add=T, border='black')
 box()
 image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2) #, legend.args=list( text="AI",cex=1, side=4, line=1))
 
 #Baseline simulation from daily calcs
-AIB=PETBz[,4,3]/precipmm #Baseline year7 PET/precip
+AIB=PETB7/precipmm #Baseline year7 PET/precip
 plottemp=AIB
 plottemp[which(plottemp>maxz)]=maxz
 plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 image(rastertemp1, maxpixels=(nx*ny*10), col=collist,  main="Baseline AI (PET/P)", axes=F, zlim=c(minz, maxz), breaks=breaklist, xlab="", ylab="")
-plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-plot(statshp, add=T, border='black')
+#plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
+#plot(statshp, add=T, border='black')
 box()
 image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2) #, legend.args=list( text="AI",cex=1, side=4, line=1))
 
@@ -431,6 +437,7 @@ image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.break
 
 
 ## HUC Plotting
+Aridity index by HUC
 ```{r AI_HUC, warning=FALSE}
 
   AI_Hgrid=PET_Hgrid[,4,1]/precipmm_Hgrid
@@ -467,3 +474,34 @@ image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.break
 
 ```
 
+Storage change divided by LH flux increase plot
+```{r StorLH_HUC, fig.width=8.1, fig.height=8.9, warning=FALSE}
+#fout=paste(plotdir, "Storage_LH_Ratio.pdf", sep="")
+#pdf(fout, width=8.1, height=8.9)
+par(mfrow=c(2,1), mar=c(1,2,3,3))
+
+maxz=0.2
+minz=0
+
+#make a mask for aridity index <1
+PET_Mask=rep(NA,nval)
+PET_Mask[AI_Hgrid<=1.5]=1
+
+#2 degree 
+plottemp=(-stordif_Hgrid[,1])/(lhmm_Hgridtot[,2]-lhmm_Hgridtot[,1]) #year for ending storage dif/ total LH dif
+plottemp[which(plottemp>maxz)]=maxz
+plottemp[which(plottemp<minz)]=minz
+plottemp=plottemp*PET_Mask
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=10), colNA='lightgrey',  legend=T, main="2 Degree stordif/LH dif [mm]", axes=F, zlim=c(minz, maxz))
+
+#4 degree 
+plottemp=(-stordif_Hgrid[,2])/(lhmm_Hgridtot[,3]-lhmm_Hgridtot[,1])
+plottemp[which(plottemp>maxz)]=maxz
+plottemp[which(plottemp<minz)]=minz
+plottemp=plottemp*PET_Mask
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=10), colNA='lightgrey',  legend=T, main="2 Degree stordif/LH dif[mm]", axes=F, zlim=c(minz, maxz))
+
+#dev.off()
+```
