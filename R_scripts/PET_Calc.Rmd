@@ -32,7 +32,7 @@ porosity=readpfb(fpor_l, verbose=F)
 porosity1=as.vector(porosity[,,5])
 rm(porosity)
 
-#Domain info 
+#Domain info
 nx=3342
 ny=1888
 nval=nx*ny
@@ -40,10 +40,10 @@ nval=nx*ny
 monthdays=c(31, 30, 31,31,28,31,30,31,30,31,31,30) #Number of days in the month for water year (i.e. starting in October)
 monthends=cumsum(monthdays) #ending day of the month water year
 
-# Latent Heat of vaporization 
-lvap= 2.5104*10^6 # J/kg n- this is the value for 'hvap' in pfsimulator/clm/clm_varcon.F90 
+# Latent Heat of vaporization
+lvap= 2.5104*10^6 # J/kg n- this is the value for 'hvap' in pfsimulator/clm/clm_varcon.F90
 #to convert from W/m2 to mm/hr
-# w/m2= J/(s*m2) 
+# w/m2= J/(s*m2)
 # LH (j/(s*m2)) / lvap (J/kg) = kg/(m2*s) /(1000 kg/m3) = m *1000 =mm
 # so just multiply by 3600/lvap to get mm   
 ```
@@ -55,56 +55,57 @@ mon=1
 dayend=monthends[mon]
 for (r in 1:1){
   print(paste("***Starting", runlist[r], "run****"))
-  
+
   for(y in 4:1){
     print(paste("***Starting Year", ylist[y], "****"))
     PET_ann=PET_mon=rep(0, nval)
     mon=1
-    
+    dayend=monthends[mon]
+
     for(d in 1:365){
 		  print(paste("Day", d))
-  
+
        #Get LH flux
 		  fin=sprintf("%s%s/Processed_Outputs/Year%s/LH.daily.%03d.bin", datadir,runlist[r], ylist[y], d)
 		  fout=sprintf("%s/%s.Year%s.LH.daily.%03d.bin", localdir,runlist[r], ylist[y],d)
 		  print(fin)
 		  print(fout)
 		  system(paste('iget -Krfv', fin , fout, sep=" "))
-		
+
 		  # Read LH into R
 		  to.read = file(fout, "rb")
 		  header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 		  lh=readBin(to.read, double(), endian = "little", size=8, n=nval)
 		  close(to.read)
-		
+
 		  #remove file to save space in app
 		  system(paste('rm', fout, sep=" "))
-		
+
 		  #Get Soil Moisture
 		  fin=sprintf("%s%s/Processed_Outputs/Year%s/SM.daily.%03d.bin", datadir,runlist[r], ylist[y], d)
 		  fout=sprintf("%s/%s.Year%s.SM.daily.%03d.bin", localdir,runlist[r], ylist[y],d)
 		  print(fin)
 		  print(fout)
 		  system(paste('iget -Krvf', fin , fout, sep=" "))
-		
+
 		  #Read Soil Moisture into R
 		  to.read = file(fout, "rb")
 		  header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 		  sm=readBin(to.read, double(), endian = "little", size=8, n=nval)
 		  close(to.read)
-		
+
 		  #remove file to save space in app
 		  system(paste('rm', fout, sep=" "))
-	  
+
 		  #convert lh to mm from daily average W/m2
-      lhmm=lh/lvap*3600*24 
-		
+      lhmm=lh/lvap*3600*24
+
 		  #Calculate beta and PET
       beta=PET=rep(0,nval)
       beta=((sm/porosity1)-0.2)/0.8
       beta[(beta<0)]=0 #getting rid of the negative values where the saturation is less than sres
       PET=lhmm/beta
-    
+
       ##Write the daily Beta outputs and export to cyverse
       outvarlist=c("Beta", "PET_mm")
       for(ovar in 1:2){
@@ -112,8 +113,8 @@ for (r in 1:1){
         fname=sprintf("%s.Year%s.%s.daily.%03d.bin",runlist[r], ylist[y],outvarlist[ovar],d)
         fwrite=paste(localdir, fname, sep="/") #local path
         fcyv=sprintf("%s%s/Processed_Outputs/Year%s/%s", datadir,runlist[r], ylist[y],fname) #cyverse path
-      
-        #write 
+
+        #write
         to.write = file(fwrite, "wb")
 			    writeBin(as.integer(c(nx,ny,1)), to.write, size=4, endian="little")
 			    if(ovar==1){
@@ -122,16 +123,16 @@ for (r in 1:1){
            writeBin(PET, to.write, size=8, endian="little")
          }
 	  	  close(to.write)
-		  
-	  	  #Transfer 
+
+	  	  #Transfer
 		    #system(paste('icd', fpath, sep=" "))
 		    system(paste("iput -f ", fwrite,  fcyv, sep=" "))
-		  
+
 		    #Remove locally
 		    system(paste("rm", fwrite))
       }
-    
-    
+
+
       PET_mon=PET_mon+PET
       # If its the end of the month write out the monthly PET and reset
       if(d==dayend){
@@ -139,29 +140,29 @@ for (r in 1:1){
         print(paste("Day=", d, "Writing Month", mon,":", fname))
         fwrite=paste(localdir, fname, sep="/") #local path
         fcyv=sprintf("%s%s/Processed_Outputs/Year%s/%s", datadir,runlist[r], ylist[y],fname) #cyverse path
-      
-        #write 
+
+        #write
         to.write = file(fwrite, "wb")
 			   writeBin(as.integer(c(nx,ny,1)), to.write, size=4, endian="little")
 			   writeBin(PET_mon, to.write, size=8, endian="little")
 	    	close(to.write)
-		  
-	  	  #Transfer 
+
+	  	  #Transfer
 		    #system(paste('icd', fpath, sep=" "))
 		    system(paste("iput -f ", fwrite,  fcyv, sep=" "))
-		  
+
 		    #Remove locally
 		    system(paste("rm", fwrite))
-		  
+
 		    #Reset the monthly PET
 		    PET_mon=rep(0,nval)
 		    mon=mon+1
 		    dayend=monthends[mon]
-      
+
       }
-    
+
       PET_ann=PET_ann+PET
-  
+
   } #end for d
 
   ##Write the annual PET outputs and export to cyverse
@@ -177,10 +178,10 @@ for (r in 1:1){
   #Transfer Beta
   #system(paste('icd', fpath, sep=" "))
   system(paste("iput -f ", fwrite,  fcyv, sep=" "))
-  
+
   #Remove locally
   system(paste("rm", fwrite))
-  
+
   } #end for y
 } #end for r
 
