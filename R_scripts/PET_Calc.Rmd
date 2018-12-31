@@ -1,11 +1,14 @@
 ---
-title: "Storage Change Anlaysis"
+title: "Calculating PET"
 author: "Laura Condon"
 date: "12/21/2018"
 output:
   html_document:
     df_print: paged
 ---
+This script calculates daily PET using the daily soil moisture and latent heat flux from the daily aggregated run outputs. PET is calculated as LH/Beta where Beta= ((soil moisture/porosity1)-0.2)/0.8.  
+
+Calculations are done on Cyverse with files temporarily transferred into Rstudio and saved out to Avra. Outputs are daily monthly and annual PET and Beta. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
