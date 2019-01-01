@@ -235,7 +235,7 @@ for(r in 1:nrun){
 }
 
 #Read in the Baseline year7 PET calcualted from the daily SM and LH
-fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp4_Year7/Baseline.Year7.PET_mm.yearly.bin"
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp0_Year7/Baseline.Year7.PET_mm.yearly.bin"
 print(fin)
 to.read = file(fin, "rb")
 header=readBin(to.read, integer(), endian = "little", size=4, n=3)
@@ -400,9 +400,9 @@ plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=10), col
 ```
 
 Aridity index
-```{r AI plot, fig.width=12, fig.height=6.7, warning=FLASE }
+```{r AI plot, fig.width=8.1, fig.height=8.9, warning=FLASE }
 par(oma=c( 0,0,0,4))
-par(mfrow=c(2,2), mar=c(1,2,3,4))
+par(mfrow=c(2,1), mar=c(1,2,3,4))
 maxz=7
 minz=0
 breaklist=c(0, 0.2, 0.4, 0.6, 0.8, 1,1.5,2,3,5,7)
