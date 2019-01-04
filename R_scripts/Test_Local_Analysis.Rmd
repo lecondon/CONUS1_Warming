@@ -5,7 +5,7 @@ date: "12/22/2018"
 output: html_document
 ---
 
-Issue: ipwd works but ils and icd down't and I cant get the file downloaded. 
+Testing different options for accessing cyverse files locally.
 ```{bash echo = FALSE}
     ipwd
     ipath="/iplant/home/shared/avra/CONUS_1.0/Simulations/"
@@ -22,6 +22,14 @@ Issue: ipwd works but ils and icd down't and I cant get the file downloaded.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+system('ils')
+system('echo $PATH')
+Sys.getenv("R_USER")
+Sys.setenv(PATH='/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/Applications/icommands')
+Sys.setenv(IRODS_PLUGINS_HOME="/Applications/icommands/plugins/")
+IRODS_PLUGINS_HOME=/Applications/icommands/plugins/
+system('echo $PATH')
+system('ils')
 ```
 
 ## R Markdown
