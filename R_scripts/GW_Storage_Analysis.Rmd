@@ -435,6 +435,96 @@ image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.break
 
 ```
 
+Delta ET/Delta PET
+```{r}
+  #4 degree - year 1  
+  y=1
+  r=3
+  dPET=PET[,y,r]-PET[,y,1]
+  dET=lhmm[,y,r]-lhmm[,y,1]
+  deltaratio=dET/dPET
+  maxz=1
+  minz=0
+  
+  par(mfrow=c(2,1), mar=c(1,2,3,3))
+
+ 
+  plottemp=deltaratio 
+  plottemp[which(plottemp>maxz)]=maxz
+  plottemp[which(plottemp<minz)]=minz
+  rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+  plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=9), colNA='lightblue',  legend=T, main="2 Degree stordif/LH dif [mm]", axes=F, zlim=c(minz, maxz))
+  
+  #4 degree - year 4 
+  y=4
+  r=3
+  dPET=PET[,y,r]-PET[,y,1]
+  dET=lhmm[,y,r]-lhmm[,y,1]
+  deltaratio=dET/dPET
+  maxz=1
+  minz=0
+  plottemp=deltaratio 
+  plottemp[which(plottemp>maxz)]=maxz
+  plottemp[which(plottemp<minz)]=minz
+  rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+  plot(rastertemp1, maxpixels=(nx*ny*10), col=brewer.pal(name="YlGnBu", n=9), colNA='lightblue',  legend=T, main="2 Degree stordif/LH dif [mm]", axes=F, zlim=c(minz, maxz))
+  
+```
+ 
+Scatter plot of dET/dPET compared to aridity and change in storage
+```{r}
+  #Coloring by the equivalent depth of storage change
+  #colvar=(storendmm_HUC[,y,r]-storendmm_HUC[,y,1])/area_HUC #Difference in ending storage averaged over the HUC area
+  #colvar=AI
+  #rbPal = brewer.pal(name="Spectral", n=10)
+  #rbPal = brewer.pal(name="YlOrRd", n=9)
+  #breakpoints=seq(0,7,by=0.7)
+  #breakpoints=seq(-90,0,by=10)
+  #nbreak=length(breakpoints)
+  #bins=as.numeric(cut(colvar, breaks=breakpoints, right=T, include.lowest=T))
+  #collist = rbPal[bins]
+
+  y=4
+  r=3
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+  
+
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Baseline Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue', main=c("Year 4 - ET Sensitivity vs Aridity"))
+  legend('topright', legend=c("4 degree", "2 degree"), pch=rep(16,2),  col=c("blue", "black"), bty='n', cex=1.2)
+  
+  # Year 3
+  #y=3
+  #r=3
+  #dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  #dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  #deltaratio=dET/dPET #Change in ET/ Change in PET
+  #AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+  #points(AI, deltaratio,  pch=16, cex=0.5, col='lightblue')
+  
+  # Year 2
+  #y=2
+  #r=3
+  #dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  #dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  #deltaratio=dET/dPET #Change in ET/ Change in PET
+  #AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+  #points(AI, deltaratio,  pch=16, cex=0.5, col='darkgreen')
+  
+  # Year 1
+  y=4
+  r=2
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='black')
+
+  
+```
+
 
 ## HUC Plotting
 Aridity index by HUC
