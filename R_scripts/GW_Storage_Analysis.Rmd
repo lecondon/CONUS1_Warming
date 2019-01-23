@@ -235,6 +235,7 @@ for(r in 1:nrun){
 
 #Read in the PET calcualted from the daily SM and LH 
 #Just reading in the ones for the figure here
+#Baseline Year 7
 fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp0_Year7/Baseline.Year7.PET_mm.yearly.bin"
 print(fin)
 to.read = file(fin, "rb")
@@ -242,6 +243,15 @@ header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 PETB7=readBin(to.read, double(), endian = "little", size=8, n=nval)
 close(to.read)
 
+#Baseline Year 4
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp0_Year4/Baseline.Year4.PET_mm.yearly.bin"
+print(fin)
+to.read = file(fin, "rb")
+header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+PETB4=readBin(to.read, double(), endian = "little", size=8, n=nval)
+close(to.read)
+
+#4 Degree Year 7
 fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp4_Year7/4Deg_Warming.Year7.PET_mm.yearly.bin"
 print(fin)
 to.read = file(fin, "rb")
@@ -249,12 +259,28 @@ header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 PET4deg7=readBin(to.read, double(), endian = "little", size=8, n=nval)
 close(to.read)
 
+#4 Degree Year 4
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp4_Year4/4Deg_Warming.Year4.PET_mm.yearly.bin"
+print(fin)
+to.read = file(fin, "rb")
+header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+PET4deg4=readBin(to.read, double(), endian = "little", size=8, n=nval)
+close(to.read)
 
+#2 Degree Year 7
 fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp2_Year7/2Deg_Warming.Year7.PET_mm.yearly.bin"
 print(fin)
 to.read = file(fin, "rb")
 header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 PET2deg7=readBin(to.read, double(), endian = "little", size=8, n=nval)
+close(to.read)
+
+#2 Degree Year 4
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp2_Year4/2Deg_Warming.Year4.PET_mm.yearly.bin"
+print(fin)
+to.read = file(fin, "rb")
+header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+PET2deg4=readBin(to.read, double(), endian = "little", size=8, n=nval)
 close(to.read)
 
 #Replace the daily calc apprach with annual where you have NAs caused by dialy soil moiture dips
@@ -263,11 +289,20 @@ length(which(is.na(PET[,4,3])==T))
 repB=which(is.na(PETB7)==T)
 PETB7[repB]=PET[repB,4,1]
 
+repB4=which(is.na(PETB4)==T)
+PETB4[repB4]=PET[repB4,1,1]
+
 rep2=which(is.na(PET2deg7)==T)
 PET2deg7[rep2]=PET[rep2,4,2]
 
+rep24=which(is.na(PET2deg4)==T)
+PET2deg4[rep24]=PET[rep24,1,2]
+
 rep4=which(is.na(PET4deg7)==T)
 PET4deg7[rep4]=PET[rep4,4,3]
+
+rep44=which(is.na(PET4deg4)==T)
+PET4deg4[rep44]=PET[rep44,1,3]
 
 
 ```
@@ -348,12 +383,13 @@ for(r in 1:nrun){
 
 ## Paper Figures
 ## Figure 1: Aridity Index
+Still need to calculate and copy the 1.5 degree cases
 ```{r AI_Fig, fig.width=8.1, fig.height=8.9, warning=FALSE}
 ##########################################
 #AI Clasified Figure
-#fout=paste(plotdir, "Annual_AIClassifications_FullColor_4panel.pdf", sep="")
-#pdf(fout, width=12, height=6.7)
-#par(oma=c( 0,0,0,4))
+fout=paste(plotdir, "Annual_AIClassifications_FullColor_4panel_PETrev.pdf", sep="")
+pdf(fout, width=12, height=6.7)
+par(oma=c( 0,0,0,4))
 par(mfrow=c(2,2), mar=c(1,2,3,4))
 
 maxz=7
@@ -383,7 +419,7 @@ image.plot(legend.only=T, breaks=1:5, zlim=c(minz,maxz), col=collist, lab.breaks
 
 #1.5 degree - difference
 #AI15=(ann15[,3]/beta15)/precipmm
-AI15=PET15/precipmm
+AI15=PETB7/precipmm
 #plottemp=AI15
 #plottemp[which(plottemp>maxz)]=maxz
 #plottemp[which(plottemp<minz)]=minz
