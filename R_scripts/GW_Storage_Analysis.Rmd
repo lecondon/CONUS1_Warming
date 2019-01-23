@@ -1,7 +1,6 @@
 ---
-title: "GW_Storage_Analysis"
+title: "Analysis and Figures for CONUS Warming Paper"
 author: "Laura Condon"
-date: "12/26/2018"
 output:
   html_document: default
   pdf_document: default
@@ -70,10 +69,10 @@ domainshp=readOGR("/Users/laura/Documents/CONUS/Shape_Files/Domain_shp/Domain_sh
 regshp=readOGR("/Users/laura/Documents/CONUS/Shape_Files/Regions_shp/Regions_Project.shp")
 #statshp=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/States/states_epa_project.shp")
 statshp=readOGR("/Users/laura/Documents/CONUS/CONUS-GIS/States/states_epa_project.shp")
-#greatlakes=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes", proj4string=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
+greatlakes=readShapeSpatial("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes", proj4string=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
 #greatlakes=readOGR("/Users/laura/Documents/CONUS/Shape_Files/GreatLakes/great_lakes.shp", p4s=CRS("+proj=merc +lon_0=0 +lat_ts=0 +x_0=0 +y_0=0 +a=6378137 +b=6378137 +units=m +no_defs"))
 #Project to UTM
-#greatlakesUTM=spTransform(greatlakes,CRS("+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs "))
+greatlakesUTM=spTransform(greatlakes,CRS("+proj=lcc +lat_1=33 +lat_2=45 +lat_0=39 +lon_0=-96 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs "))
 
 ```
 
@@ -223,7 +222,7 @@ stordif=storendmm[,4,2:nrun]-storendmm[,4,1] #difference in ending storage
 
 Calcualte PET:
 ```{r PET_calc}
-#Cacluate Beta and PET based on Beta
+#Cacluate Beta and PET based on Beta using annual soil moisture numbers
 beta=PET=array(NA, dim=c(nval, nyear, nrun))
 for(r in 1:nrun){
   print(r)
@@ -234,13 +233,41 @@ for(r in 1:nrun){
   }
 }
 
-#Read in the Baseline year7 PET calcualted from the daily SM and LH
+#Read in the PET calcualted from the daily SM and LH 
+#Just reading in the ones for the figure here
 fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp0_Year7/Baseline.Year7.PET_mm.yearly.bin"
 print(fin)
 to.read = file(fin, "rb")
 header=readBin(to.read, integer(), endian = "little", size=4, n=3)
 PETB7=readBin(to.read, double(), endian = "little", size=8, n=nval)
 close(to.read)
+
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp4_Year7/4Deg_Warming.Year7.PET_mm.yearly.bin"
+print(fin)
+to.read = file(fin, "rb")
+header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+PET4deg7=readBin(to.read, double(), endian = "little", size=8, n=nval)
+close(to.read)
+
+
+fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp2_Year7/2Deg_Warming.Year7.PET_mm.yearly.bin"
+print(fin)
+to.read = file(fin, "rb")
+header=readBin(to.read, integer(), endian = "little", size=4, n=3)
+PET2deg7=readBin(to.read, double(), endian = "little", size=8, n=nval)
+close(to.read)
+
+#Replace the daily calc apprach with annual where you have NAs caused by dialy soil moiture dips
+length(which(is.na(PET[,4,3])==T))
+
+repB=which(is.na(PETB7)==T)
+PETB7[repB]=PET[repB,4,1]
+
+rep2=which(is.na(PET2deg7)==T)
+PET2deg7[rep2]=PET[rep2,4,2]
+
+rep4=which(is.na(PET4deg7)==T)
+PET4deg7[rep4]=PET[rep4,4,3]
 
 
 ```
@@ -319,7 +346,119 @@ for(r in 1:nrun){
 }
 ```
 
-## Gridded Plotting
+## Paper Figures
+## Figure 1: Aridity Index
+```{r AI_Fig, fig.width=8.1, fig.height=8.9, warning=FALSE}
+##########################################
+#AI Clasified Figure
+#fout=paste(plotdir, "Annual_AIClassifications_FullColor_4panel.pdf", sep="")
+#pdf(fout, width=12, height=6.7)
+#par(oma=c( 0,0,0,4))
+par(mfrow=c(2,2), mar=c(1,2,3,4))
+
+maxz=7
+minz=0
+
+#color list if you want to just break at o.8 and 1.2
+breaklist=c(0, 0.8, 1, 1.2,7)
+collist=rev(c('#e08214', '#fdb863', '#b2abd2', '#8073ac'))
+
+#complete color list
+#breaklist=c(0, 0.2, 0.4, 0.6, 0.8, 1,1.5,2,3,5,7)
+#collist=rev(brewer.pal(name="Spectral", n=10))
+
+#Baseline
+#AIB=(annB[,3]/betaB)/precipmm
+AIB=PETB7/precipmm
+plottemp=AIB
+plottemp[which(plottemp>maxz)]=maxz
+plottemp[which(plottemp<minz)]=minz
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+image(rastertemp1, maxpixels=(nx*ny*10), col=collist,  main="a) Baseline AI (PET/P)", axes=F, zlim=c(minz, maxz), breaks=breaklist, xlab="", ylab="")
+plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
+plot(statshp, add=T, border='black')
+box()
+image.plot(legend.only=T, breaks=1:5, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2) #, legend.args=list( text="AI",cex=1, side=4, line=1)) #use if you do the 0.8, 1.2 color pallette
+#image.plot(legend.only=T, breaks=1:11, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2) #, legend.args=list( text="AI",cex=1, side=4, line=1))
+
+#1.5 degree - difference
+#AI15=(ann15[,3]/beta15)/precipmm
+AI15=PET15/precipmm
+#plottemp=AI15
+#plottemp[which(plottemp>maxz)]=maxz
+#plottemp[which(plottemp<minz)]=minz
+#rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+#image(rastertemp1, maxpixels=(nx*ny*10), breaks=breaklist,col=collist,   main="1.5 Degree Warming AI", axes=F, zlim=c(minz, maxz), xlab="", ylab="")
+#box()
+#image.plot(legend.only=T, breaks=1:5, zlim=c(minz,maxz), col=collist, lab.breaks=breaklist, legend.width=2) #, legend.args=list( text="AI",cex=1.2, side=4, line=6))
+
+
+#Categorical Differenceces
+collist=c("white", "green", "blue", "red")
+#collist=c("white", "#542788", "#a6dba0", "#b35806")
+
+#1.5 degree
+#find locations that swapped categories
+swap15=rep(0,nval)
+breaklist=c(0, 0.8, 1, 1.2,7)
+find1=which(AIB<0.8 & AI15>0.8) #swaping from strongly to wekaly energy limited
+find2=which(AIB<1 & AI15>1) #swaping from energy to water limited
+find3=which(AIB>1 & AIB <1.2 & AI15>1.2) #swaping from slightly to significantly water limited
+swap15[find1]=1
+swap15[find2]=2
+swap15[find3]=3
+
+plottemp=swap15
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+image(rastertemp1, maxpixels=(nx*ny*10),   axes=F, col=collist, breaks=c(-0.5, 0.1, 1.1, 2.2, 3.2), main="b) AI Classificaiton Changes 1.5 Degree", xlab="", ylab="", zlim=c(0,3))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black')
+box()
+#image.plot(legend.only=T, breaks=1:length(breaklist), zlim=c(0,3), col=collist, legend.width=2) #, legend.args=list( text="AI",cex=1.2, side=4, line=6))
+
+#2 degree
+AI2=PET2deg7/precipmm
+swap2=rep(0,nval)
+find1=which(AIB<0.8 & AI2>0.8) #swaping from strongly to wekaly energy limited
+find2=which(AIB<1 & AI2>1) #swaping from energy to water limited
+find3=which(AIB>1 & AIB <1.2 & AI2>1.2) #swaping from slightly to significantly water limited
+swap2[find1]=1
+swap2[find2]=2
+swap2[find3]=3
+
+plottemp=swap2
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+image(rastertemp1, maxpixels=(nx*ny*10),   axes=F, col=collist, breaks=c(-0.5, 0.1, 1.1, 2.2, 3.2), main="c) AI Classificaiton Changes 2 Degree", xlab="", ylab="", zlim=c(0,3))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black')
+box()
+#image.plot(legend.only=T, breaks=1:length(breaklist), zlim=c(0,3), col=collist, legend.width=2) #, legend.args=list( text="AI",cex=1.2, side=4, line=6))
+
+#4 degree
+AI4=PET4deg7/precipmm
+swap4=rep(0,nval)
+find1=which(AIB<0.8 & AI4>0.8) #swaping from strongly to wekaly energy limited
+find2=which(AIB<1 & AI4>1) #swaping from energy to water limited
+find3=which(AIB>1 & AIB <1.2 & AI4>1.2) #swaping from slightly to significantly water limited
+swap4[find1]=1
+swap4[find2]=2
+swap4[find3]=3
+
+plottemp=swap4
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+image(rastertemp1, maxpixels=(nx*ny*10),   axes=F, col=collist, breaks=c(-0.5, 0.1, 1.1, 2.2, 3.2), main="d) AI Classificaiton Changes 4 Degree", xlab="", ylab="", zlim=c(0,3))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black')
+box()
+image.plot(legend.only=T, breaks=1:length(breaklist), zlim=c(0,3), col=collist, legend.width=2, axis.args=list(at=c(1.5, 2.5, 3.5, 4.5), labels=c("NC", "SEL to WEL", "WEL to WWL", "WWL to SWL"), cex.axis=0.6)) #, legend.args=list( text="AI",cex=1.2, side=4, line=6))
+
+dev.off()
+
+
+```
+
+
+## Additional Plotting
 Ending storage plot
 ```{r storend_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
 #fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
@@ -472,7 +611,7 @@ Delta ET/Delta PET
 ```
  
 Scatter plot of dET/dPET compared to aridity and change in storage
-```{r}
+```{r, fig.width=4, fig.height=4}
   #Coloring by the equivalent depth of storage change
   #colvar=(storendmm_HUC[,y,r]-storendmm_HUC[,y,1])/area_HUC #Difference in ending storage averaged over the HUC area
   #colvar=AI
@@ -484,43 +623,100 @@ Scatter plot of dET/dPET compared to aridity and change in storage
   #bins=as.numeric(cut(colvar, breaks=breakpoints, right=T, include.lowest=T))
   #collist = rbPal[bins]
 
-  y=4
-  r=3
-  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
-  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
-  deltaratio=dET/dPET #Change in ET/ Change in PET
-  AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+par(mfrow=c(2,2))
+#####
+#First plot compare across warming scenarios for one year
+  y=1
   
-
-  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Baseline Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue', main=c("Year 4 - ET Sensitivity vs Aridity"))
-  legend('topright', legend=c("4 degree", "2 degree"), pch=rep(16,2),  col=c("blue", "black"), bty='n', cex=1.2)
-  
-  # Year 3
-  #y=3
-  #r=3
-  #dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
-  #dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
-  #deltaratio=dET/dPET #Change in ET/ Change in PET
-  #AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
-  #points(AI, deltaratio,  pch=16, cex=0.5, col='lightblue')
-  
-  # Year 2
-  #y=2
-  #r=3
-  #dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
-  #dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
-  #deltaratio=dET/dPET #Change in ET/ Change in PET
-  #AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
-  #points(AI, deltaratio,  pch=16, cex=0.5, col='darkgreen')
-  
-  # Year 1
-  y=4
+  #2 degree run
   r=2
   dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
   dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
   deltaratio=dET/dPET #Change in ET/ Change in PET
-  AI=PET_HUC[,y,1]/precipmm_HUC #Baseline run aridity index
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='orange', main=c("Year 1 - ET Sensitivity vs Aridity"))
+  legend('topright', legend=c("2 degree", "4 degree"), pch=rep(16,2),  col=c("orange", "red"), bty='n', cex=1.2)
+  
+  # 4 degree run
+  r=3
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='red')
+#################
+  
+#Second plot compare across warming scenarios for one year
+  y=4
+  
+  #2 degree run
+  r=2
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='orange', main=c("Year 4 - ET Sensitivity vs Aridity"))
+  legend('topright', legend=c("2 degree", "4 degree"), pch=rep(16,2),  col=c("orange", "red"), bty='n', cex=1.2)
+  
+  # 4 degree run
+  r=3
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='red')
+#################
+  
+#Third plot compare from year 1 to year 4 2 degree case
+  r=2
+  
+  #year 4
+  y=4
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue',  main=c("2 Degree - ET Sensitivity vs Aridity"))
+  legend('topright', legend=c("Year 1", "Year 4"), pch=rep(16,2),  col=c("black", "blue"), bty='n', cex=1.2)
+  
+  # year 1
+  y=1
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
   points(AI, deltaratio,  pch=16, cex=0.5, col='black')
+#################
+  
+#Fourth plot compare from year 1 to year 4 4 degree case
+    r=3
+  
+  #2 degree run
+  y=4
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue',  main=c("4 Degree - ET Sensitivity vs Aridity"))
+  legend('topright', legend=c("Year 1", "Year 4"), pch=rep(16,2),  col=c("black", "blue"), bty='n', cex=1.2)
+  
+  # 4 degree run
+  y=1
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='black')
+
+
 
   
 ```
