@@ -148,7 +148,10 @@ region=matrix(scan("/Users/laura/Documents/CONUS/Final_Domain/Other_Domain_Files
 regnames=c(	"Pacific Northwest", "Missouri","Souris-Red Rainy", "Great Lakes","Upper Mississippi", "Great Basin","Upper Colorado", "Ohio", "Mid Atlantic", "Lower Colorado", "Arkansas", "California", "Rio Grande", "South Atlantic-Gulf", "Tenessee", "Lower Mississippi","Texas-Gulf")
 #list of regions to care about here
 #reglist=c(1,2,5,6, 7,8,10,11,13,15,16)
-reglist=c(1,2,5,6, 7,10,8,11, 15)
+#reglist=c(1,2,5,6, 7,10,8,11, 15) #Withoug RioG and Lower Miss
+reglist=c(1,6, 7,10,13, 2,11,5,16,8,15)#ordered moving west to east 
+reglist=c(6,10, 7, 1,13, 2,5,11,8,15,16)#ordered by baselin year 1 averge lh
+reglist=c(6,10, 7, 13, 1, 2,11,16, 5, 15,8)#ordered by average baseline AI 
 
 #reglist=c(2,6, 7,10,11,13)
 regnames[reglist]
@@ -158,6 +161,7 @@ nreg=length(reglist)
 
 
 ## Reading Inputs
+Note: Add information about the averaging scripts. 
 Read Precipitation
 ```{r precip_read}
 fin="/Users/laura/Documents/CONUS/Transient_Runs/Forcing_Averages/precip.yearly.bin"
@@ -224,7 +228,7 @@ for(r in 1:nrun){
 	    print("skiping 1.5 degree year 2")
 	  }else{
 		
-	  if(r==2){fin=sprintf("%s/Temp%2.1f_Year%d/LH.yearly.bin", dir,runlist[r], ylist[y])
+	  if(r==2){fin=sprintf("%s/Temp%2.1f_Year%d/SM.yearly.bin", dir,runlist[r], ylist[y])
 	  }else{
 		  fin=sprintf("%s/Temp%d_Year%d/SM.yearly.bin", dir,runlist[r], ylist[y])
 	  }
@@ -252,7 +256,7 @@ for(r in 1:nrun){
 	    print("skiping 1.5 degree year 2")
 	  }else{
 		
-	  if(r==2){fin=sprintf("%s/Temp%2.1f_Year%d/LH.yearly.bin", dir,runlist[r], ylist[y])
+	  if(r==2){fin=sprintf("%s/Temp%2.1f_Year%d/storage.monthly.12.bin", dir,runlist[r], ylist[y])
 	  }else{
 	    fin=sprintf("%s/Temp%d_Year%d/storage.monthly.12.bin", dir,runlist[r], ylist[y])
 	  }
@@ -271,6 +275,7 @@ stordif=storendmm[,4,2:nrun]-storendmm[,4,1] #difference in ending storage
 ```
 
 Calcualte PET:
+Note: Update with the provenance of the Daily PET calculations
 ```{r PET_calc}
 #Cacluate Beta and PET based on Beta using annual soil moisture numbers
 beta=PET=array(NA, dim=c(nval, nyear, nrun))
@@ -378,6 +383,44 @@ PET4deg4[rep44]=PET[rep44,1,4]
 
 ```
 
+Read in the daily total LH and WTD that have been summed across the domain
+Note: Update with information about how these these 'yearly.txt' files were calcualted 
+```{r daily_totals}
+
+lhD=storageD=matrix(NA, nrow=4*365, ncol=nrun)
+for(r in 1:nrun){
+	print(r)
+	for(y in 4:7){
+		print(paste("Year:", y))
+		i1=(y-4)*365 +1 
+		i2=i1+364
+		
+		if(r==2 & y ==5){
+			print("skipping T1.5 Year5")
+		} else{
+		
+		#lh
+		fin=paste(dir, '/Temp', runlist[r], "_Year", y, "/LH.yearly.txt", sep="")
+		temp=matrix(scan(fin), ncol=2, byrow=T)
+		lhD[i1:i2, r]=temp[,2]
+		
+		#storage
+		fin=paste(dir, '/Temp', runlist[r], "_Year", y, "/storage.yearly.txt", sep="")
+		temp=matrix(scan(fin), ncol=2, byrow=T)
+		storageD[i1:i2, r]=temp[,2]
+		}
+		
+	}
+}
+
+storageD[952,3]=storageD[951,3] # Fixing one corrupted file
+stordifD=storageD-storageD[1,1] #Difference from the initial baseline storage
+
+lhD_m3=lhD*3600/lvap*24*1000^2/1000
+
+```
+
+
 ## Spaital aggregations
 Aggregate by HUC
 ```{r HUC_agg}
@@ -432,6 +475,8 @@ for(h in 1:nhuc){
   
 }
 
+
+
 #zeroing out the values for the -999 HUC
 stordif_HUC[1,]=NA
 storendmm_HUC[1,,]=NA
@@ -458,7 +503,9 @@ Aggregate by Region
 #setup matrics
 lhreg=array(0, dim=c(nreg,4,4))
 lhregdif=array(0, dim=c(nreg,4,3))
-storendreg=array(0, dim=c(nreg,4,4))
+storendregmm=array(0, dim=c(nreg,4,4))
+storegdifmm=array(0, dim=c(nreg,4,3))
+AIBreg=rep(0,nreg)
 rarea=rep(0,nreg)
 
 #loop over regions caculating totals
@@ -468,13 +515,20 @@ for(r in 1:nreg){
 	rindex=which(region==rtemp)
 	rarea[r]=length(rindex)
 	
+	#Calculate the baseline aridity
+	temp=PETB7/precipmm
+	temp[temp>7]=7
+	temp[temp<0]=0
+	AIBreg[r]=mean(temp[rindex], na.rm=T, is.finite=T)
+	
 	#average over the regions cells
 	for(y in 1:nyear){
 	  for(ri in 1:nrun){
-	    storendreg[r,y, ri]=mean(storend[rindex,y,ri]) #average ending storage
+	    storendregmm[r,y, ri]=mean(storendmm[rindex,y,ri]) #average ending storage
 	    lhreg[r,y, ri]=mean(lhmm[rindex,y, ri]) #average lh [mm]
 	    if(ri>1){
 	      	lhregdif[r,,(ri-1)] = lhreg[r,,ri] - lhreg[r,,1]
+	      	storegdifmm[r,,(ri-1)] = storendregmm[r,,ri] - storendregmm[r,,1]
 	    }
 	  }
 	}
@@ -488,8 +542,6 @@ for(r in 1:nreg){
 ## Paper Figures
 ## Figure 1: Aridity Index
 ```{r AI_Fig, fig.width=8.1, fig.height=8.9, warning=FALSE}
-##########################################
-#AI Clasified Figure
 fout=paste(plotdir, "Annual_AIClassifications_FullColor_4panel_PETrev.pdf", sep="")
 pdf(fout, width=12, height=6.7)
 par(oma=c( 0,0,0,4))
@@ -602,14 +654,14 @@ dev.off()
 
 ## Figure 2: ET Changes
 Part 1: Maps of ET and ET changes
-```{r ET_Maps, fig.width=12, height=6.6}
+```{r ET_Maps, fig.width=12, fig.height=6.6}
 fout=paste(plotdir, "Annual_ET_4panel.pdf", sep="")
 #pdf(fout, width=5.9, height=8.9)
 #par(mfrow=c(3,1), mar=c(1,2,3,3))
 pdf(fout, width=12, height=6.6)
 par(oma=c( 0,0,0,4))
 par(mfrow=c(2,2), mar=c(1,2,3,4))
-maxz=1500
+maxz=1000
 minz=0
 
 #Baseline
@@ -618,10 +670,10 @@ plottemp=lhmm[,4,1]
 plottemp[which(plottemp>maxz)]=maxz
 plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
-plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="Spectral", n=10)), colNA='lightblue',  legend=T, main="Baseline ET (mm)", axes=F, zlim=c(minz, maxz))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=(brewer.pal(name="Spectral", n=10)), colNA='lightblue',  legend=T, main="Baseline ET (mm)", axes=F, zlim=c(minz, maxz))
 plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-plot(regshp, add=T, border='black')
-#plot(statshp, add=T, border='black')
+#plot(regshp, add=T, border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
 
 #1.5 Difference
 #plottemp=ann15[,3]-annB[,3]
@@ -633,8 +685,8 @@ plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="PuOr", n=10)), colNA='black',  legend=T, main="1.5 Warming - Baseline", axes=F, zlim=c(minz, maxz))
 plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-#plot(statshp, add=T, border='black')
-plot(regshp, add=T, border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
+#plot(regshp, add=T, border='black')
 
 
 #2 Difference
@@ -647,8 +699,8 @@ plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="PuOr", n=10)), colNA='black',  legend=T, main="2 Warming - Baseline", axes=F, zlim=c(minz, maxz))
 plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-plot(regshp, add=T, border='black')
-#plot(statshp, add=T, border='black')
+#plot(regshp, add=T, border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
 #abline(v=0)
 
 #4 Difference
@@ -662,8 +714,8 @@ rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
 plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="PuOr", n=10)), colNA='black',  legend=T, main="4 Warming - Baseline", axes=F, zlim=c(minz, maxz))
 plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
 plot(greatlakesUTM, add=T, col='lightgrey', border='lightgrey')
-plot(regshp, add=T, border='black')
-#plot(statshp, add=T, border='black')
+#plot(regshp, add=T, border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
 #abline(v=0)
 
 dev.off()
@@ -672,68 +724,239 @@ dev.off()
 ```
 
 Part 2: Regional trends
-```{r ET_Lines, fig.width=6, height=12}
-#display.brewer.all()
-collist=brewer.pal(name='Spectral',n=11)
-collist[6]="grey"
+```{r ET_Lines, fig.width=6, fig.height=2}
 display.brewer.pal(name='Spectral',n=11)
+collist=brewer.pal(name='Spectral',n=11)
+collist[6:10]=c('#c7e9b4','#7fcdbb','#41b6c4','#2c7fb8','#253494')
+collist[6]='#a1d99b'
+barplot(height=rep(1,11), width=rep(1,11), space=0,border=NA, col= collist, beside=F)
 
-ylab="Change in avg. ET [mm] / Change in Temp"
+ylab="Avg. ET change per degree warming [mm]"
 
 fout=paste(plotdir, "Regional_Differences_PerDT.pdf", sep="")
-pdf(fout, width=6, height=10)
+pdf(fout, width=4, height=6)
 
 for(r in 1:nreg){
 	plotdata=c(lhregdif[r,4,1]/1.5, lhregdif[r,4,2]/2, lhregdif[r,4,3]/4)
 	if(r==1){
-		plot(c(1.5, 2, 4), plotdata, type='b', pch=16, col=collist[r], xlim=c(1,4.5), ylim=c(0,80), xlab="Change in Temp [deg c]",ylab=ylab, lwd=2)
+		plot(c(1.5, 2, 4), plotdata, type='b', pch=16, col=collist[r], xlim=c(1,4.5), ylim=c(0,80), xlab="Warming [deg C]",ylab=ylab, lwd=2)
 	}
 	
 	lines(c(1.5, 2, 4), plotdata, type='b', pch=16, col=collist[r], lwd=2)
-	legend("topright", legend=plotnames, col=collist, pch=rep(16,nreg), bty="n")
+	#legend("topright", legend=plotnames, col=collist, pch=rep(16,nreg), bty="n")
 }
 ```
 
 Part 3: Color legend for the regions
-```{r}
-
+```{r region_map, fig.width=7, fig.height=5 }
+fout=paste(plotdir, "BasinMap.pdf", sep="")
+pdf(fout, width=7.6, height=5)
 reg_col=rep(NA, nval)
-rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
-
+for(r in 1:nreg){
+  rtemp=reglist[r]
+	rindex=which(region==rtemp)
+	reg_col[rindex]=r
+}
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, reg_col))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=collist, breaks=(1:(length(collist)+1)-0.1),  colNA='white',  legend=F,  axes=F)
+plot(statshp, add=T, border='black', lwd=0.5)
+plot(greatlakesUTM, add=T, col='white', border='black', lwd=0.5)
+plot(domainshp, add=T, border='black', lwd=2)
+dev.off()
 ```
 
 ## Figure 3: Storage differences
+Supporting volume clacs for figure 3 disucssion 
+```{r store_stats}
+#Calcualting the totals for the paper
+#total storage
+totaldif=apply(stordif, 2, sum)/1000  #/1000 to convert from mm to MCM
+
+#East west storage
+eastmask=rep(0, nval)
+eastmask[which(xUTM>=mean(xUTM))]=1
+eastdif=apply(stordif[which(eastmask==1),], 2, sum)/1000 #storage losses in the east
+westdif=apply(stordif[which(eastmask==0),], 2, sum)/1000 #storage losses in the west
+round(eastdif/totaldif,2)
+
+#latent heat year 4 differences 
+lhdif1.5 = lhmm[,4,2]-lhmm[,4,1]
+lhdif2 = lhmm[,4,3]-lhmm[,4,1]
+lhdif4 = lhmm[,4,4]-lhmm[,4,1]
+
+round(sum(lhdif1.5[which(eastmask==1)])/sum(lhdif1.5),2)
+round(sum(lhdif2[which(eastmask==1)])/sum(lhdif2),2)
+round(sum(lhdif4[which(eastmask==1)])/sum(lhdif4),2)
+
+```
+
+Part 1: Ending storage differences
+```{r storend_maps, fig.width=8.1, fig.height=8.9, warning=FALSE}
+fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
+pdf(fout, width=12, height=6.6)
+par(oma=c( 0,0,0,4))
+par(mfrow=c(2,2), mar=c(1,2,3,4))
 
 
-
-## Additional Plotting
-Ending storage plot
-```{r storend_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
-#fout=paste(plotdir, "Ending_Storage_Diff.pdf", sep="")
-#pdf(fout, width=8.1, height=8.9)
-par(mfrow=c(2,1), mar=c(1,2,3,3))
 
 maxz=0
 minz=-100
 
-#2 degree 
+#1.5 degree 
 plottemp=stordif[,1]
 plottemp[which(plottemp>maxz)]=maxz
 plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
-plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="2 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="1.5 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
+abline(v=mean(xUTM), col="blue", lwd=1, lty=3)
 
-#4 degree 
+#2 degree 
 plottemp=stordif[,2]
 plottemp[which(plottemp>maxz)]=maxz
 plottemp[which(plottemp<minz)]=minz
 rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
-plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="4 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="2 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
+abline(v=mean(xUTM), col="blue", lwd=1, lty=3)
 
-#dev.off()
+#4 degree 
+plottemp=stordif[,3]
+plottemp[which(plottemp>maxz)]=maxz
+plottemp[which(plottemp<minz)]=minz
+rastertemp1=rasterFromXYZ(cbind(xUTM, yUTM, plottemp))
+plot(rastertemp1, maxpixels=(nx*ny*10), col=rev(brewer.pal(name="YlOrRd", n=5)), colNA='lightblue',  legend=T, main="4 Degree Ending Storage dif [mm]", axes=F, zlim=c(minz, maxz))
+plot(greatlakesUTM, add=T, col='lightgrey', border='black')
+plot(statshp, add=T, border='black', lwd=0.5)
+abline(v=mean(xUTM), col="blue", lwd=1, lty=3)
+
+dev.off()
 
 ```
 
+Part 2: Daily timeseries of domain total storage
+```{r daily_storage, fig.width=7, fig.height=4}
+fout=paste(plotdir, "Daily_StorageTotal_Lines.pdf", sep="")
+pdf(fout, width=8, height=6)
+
+nday=nrow(stordifD)
+plot(1:nday, stordifD[,1]/10^6, type='l', lwd=2, col='black', ylim=c(min(stordifD[1:500,]/10^6, na.rm=T), max(stordifD/10^6,na.rm=T)),xlim=c(1,nday), ylab='Storage change from Baseline Day1 [MCM]' ,xlab="", axes=F)
+abline(v=seq(1:3)*365, lty=3)
+axis(2)
+#axis(1, at=seq(1, nday, 30), labels=F)
+box()
+lines(1:nday, stordifD[,2]/10^6, lwd=2, col='orange')
+lines(1:nday, stordifD[,3]/10^6, lwd=2, col='red')
+lines(1:nday, stordifD[,4]/10^6, lwd=2, col='darkred')
+
+dev.off()
+
+#difference lines
+#nday=nrow(stordifD)
+#plot(1:nday, (stordifD[,2]-stordifD[,1]), type='l', lwd=2, col='orange', ylim=c(-3.5e11,0), ylab='Storage Difference (Warming-Baseline)[m3]')
+#lines(1:nday, (stordifD[,3]-stordifD[,1]), lwd=2, col='red')
+#lines(1:nday, (stordifD[,4]-stordifD[,1]), lwd=2, col='darkred')
+#abline(v=seq(1:4)*365)
+#bline(h=0)
+
+```
+
+Part 3: Regional trends
+```{r ET_Lines, fig.width=6, fig.height=2}
+display.brewer.pal(name='Spectral',n=11)
+collist=brewer.pal(name='Spectral',n=11)
+collist[6:10]=c('#c7e9b4','#7fcdbb','#41b6c4','#2c7fb8','#253494')
+collist[6]='#a1d99b'
+barplot(height=rep(1,11), width=rep(1,11), space=0,border=NA, col= collist, beside=F)
+
+ylab="Avg.storage change per degree warming [mm]"
+
+fout=paste(plotdir, "Storage_Regional_Differences_PerDT.pdf", sep="")
+pdf(fout, width=4, height=6)
+
+for(r in 1:nreg){
+	plotdata=c(storegdifmm[r,4,1]/1.5, storegdifmm[r,4,2]/2, storegdifmm[r,4,3]/4)
+	if(r==1){
+		plot(c(1.5, 2, 4), plotdata, type='b', pch=16, col=collist[r], ylim=c(-5,-30), xlim=c(1,4.5), xlab="Warming [deg C]",ylab=ylab, lwd=2)
+	}
+	
+	lines(c(1.5, 2, 4), plotdata, type='b', pch=16, col=collist[r], lwd=2)
+	#legend("topright", legend=plotnames, col=collist, pch=rep(16,nreg), bty="n")
+}
+```
+
+## Figure 4: ET sensitivity scatter plots
+```{r dET_dPET_Scatter}
+fout=paste(plotdir, "dET_dPET_Scatter.pdf", sep="")
+pdf(fout, width=6, height=3)
+
+par(mfrow=c(1,3))
+
+#1.5 Degree Plot: 
+  r=2
+  #year 4
+  y=4
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue',  main="1.5 Degree")
+  #legend('topright', legend=c("Year 1", "Year 4"), pch=rep(16,2),  col=c("black", "blue"), bty='n', cex=1.2)
+  
+  # year 1
+  y=1
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='green')
+  
+#2 degree plot
+  r=3
+  y=4
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue',  main="2 Degree")
+  #legend('topright', legend=c("Year 1", "Year 4"), pch=rep(16,2),  col=c("black", "blue"), bty='n', cex=1.2)
+  
+  # year1
+  y=1
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='green')
+
+  #4 degree plot
+  r=4
+  y=4
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  
+  plot(AI, deltaratio, type='p', xlim=c(0,7), ylim=c(0,1), xlab="Aridity Index", ylab="dET/dPET", pch=16, cex=0.6, col='blue',  main="4 Degree")
+  #legend('topright', legend=c("Year 1", "Year 4"), pch=rep(16,2),  col=c("black", "blue"), bty='n', cex=1.2)
+  
+  # year1
+  y=1
+  dPET=PET_HUC[,y,r]-PET_HUC[,y,1]
+  dET=lhmm_HUC[,y,r]-lhmm_HUC[,y,1]
+  deltaratio=dET/dPET #Change in ET/ Change in PET
+  AI=PET_HUC[,y,r]/precipmm_HUC #Baseline run aridity index
+  points(AI, deltaratio,  pch=16, cex=0.5, col='green')
+
+dev.off()
+  
+```
+
+### --------------------------------------------------------------------------------------------------------------
+## Additional Plotting
 Total LH Flux plot
 ```{r LHtot_plot, fig.width=8.1, fig.height=8.9, warning=FALSE}
 #fout=paste(plotdir, "LH_Total_Diff.pdf", sep="")
