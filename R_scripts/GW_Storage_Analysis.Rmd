@@ -2,8 +2,8 @@
 title: "Analysis and Figures for CONUS Warming Paper"
 author: "Laura Condon"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, cache=FALSE,include=FALSE}
@@ -256,9 +256,10 @@ for(r in 1:nrun){
 	    print("skiping 1.5 degree year 2")
 	  }else{
 		
-	  if(r==2){fin=sprintf("%s/Temp%2.1f_Year%d/storage.monthly.12.bin", dir,runlist[r], ylist[y])
+	  if(r==2){fin=sprintf("/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp%2.1f_Year%d/storage.monthly.12.bin", runlist[r], ylist[y])
 	  }else{
-	    fin=sprintf("%s/Temp%d_Year%d/storage.monthly.12.bin", dir,runlist[r], ylist[y])
+	    fin=sprintf("/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp%d_Year%d/storage.monthly.12.bin", runlist[r], ylist[y])
+	    #fin="/Users/laura/Documents/CONUS/Warming_Runs/Simulation_Averages/Temp0_Year4/storage.monthly.12.bin"
 	  }
 		print(fin)
 		to.read = file(fin, "rb")
@@ -532,9 +533,10 @@ Aggregate by Region
 #setup matrics
 lhreg=array(0, dim=c(nreg,4,4))
 lhregdif=array(0, dim=c(nreg,4,3))
-storendregmm=array(0, dim=c(nreg,4,4))
+storendregmm=PRreg=array(0, dim=c(nreg,4,4))
 storegdifmm=array(0, dim=c(nreg,4,3))
 AIBreg=rep(0,nreg)
+PETreg=rep(0,nreg)
 rarea=rep(0,nreg)
 
 #loop over regions caculating totals
@@ -549,12 +551,17 @@ for(r in 1:nreg){
 	temp[temp>7]=7
 	temp[temp<0]=0
 	AIBreg[r]=mean(temp[rindex], na.rm=T, is.finite=T)
+	temp2=PETB7[rindex]
+	temp3=temp2[is.finite(temp2)==T]
+	PETreg[r]=mean(temp3, na.rm=T)
+
 	
 	#average over the regions cells
 	for(y in 1:nyear){
 	  for(ri in 1:nrun){
 	    storendregmm[r,y, ri]=mean(storendmm[rindex,y,ri]) #average ending storage
 	    lhreg[r,y, ri]=mean(lhmm[rindex,y, ri]) #average lh [mm]
+	    PRreg[r,y,ri]=mean(precipmm[rindex]-lhmm[rindex,y, ri])
 	    if(ri>1){
 	      	lhregdif[r,,(ri-1)] = lhreg[r,,ri] - lhreg[r,,1]
 	      	storegdifmm[r,,(ri-1)] = storendregmm[r,,ri] - storendregmm[r,,1]
@@ -936,7 +943,8 @@ dev.off()
 
 Part 2: Daily timeseries of domain total storage
 ```{r daily_storage, fig.width=7, fig.height=4}
-fout=paste(plotdir, "Daily_StorageTotal_Lines2.pdf", sep="")
+#fout=paste(plotdir, "Daily_StorageTotal_Lines9_19.pdf", sep="")
+fout="Daily_StorageTotal_Lines9_19.pdf"
 pdf(fout, width=8, height=6)
 
 nday=nrow(stordifD)
@@ -958,6 +966,21 @@ dev.off()
 #lines(1:nday, (stordifD[,4]-stordifD[,1]), lwd=2, col='darkred')
 #abline(v=seq(1:4)*365)
 #bline(h=0)
+
+#calculate the range in storage per year for every scenario
+temp_sum=array(0,dim=c(4,4,4))
+for(y in 1:4){
+  start=(y-1)*365+1
+  end=y*365
+  temp_sum[1,y,]=stordifD[start,]
+  temp_sum[2,y,]=apply(stordifD[start:end,],2,max)
+  temp_sum[3,y,]=temp_sum[2,y,]-temp_sum[1,y,]
+  temp_sum[4,y,]=apply(stordifD[start:end,],2,which.max)
+}
+#check change in recharge from year 4 to year 1
+for(r in 1:4){
+  print((temp_sum[3,4,r]-temp_sum[3,1,r])/temp_sum[3,1,r])
+}
 
 ```
 

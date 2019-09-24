@@ -11,8 +11,10 @@ Temp0_Year4 = /data/CONUS/active/CONUS.pfclm.1985.run4/averages/averages
 #1.5 degree warming
 Temp1.5_Year7=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-7
 Temp1.5_Year6=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-6
-Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-2
-Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-4
+Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/ave-Temp-1.5-Year2-Done4-19
+Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/ave-Temp-1.5-Year1-Done4-19
+#Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-2
+#Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-4
 
 # 2 degree warming
 Temp2_Year7=/data/CONUS/active/Warming_Runs/Temp2/averagesT2Y4
@@ -43,12 +45,14 @@ Temp4_Year6=/data/CONUS/active/Warming_Runs/Temp4/averagesT4Y3
 
 #Year 5
 Temp0_Year5 = /data/CONUS/active/Warming_Runs/Temp0/averages-TEST-2-CHECK-1
-Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-5
+Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/ave-Temp-1.5-Year2-Done4-19
+#Temp1.5_Year5=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-5
 Temp2_Year5=/data/CONUS/active/Warming_Runs/Temp2/averages-Temp-2-Year-5
 Temp4_Year5=/data/CONUS/active/Warming_Runs/Temp4/averages-Temp-4-Year-5
 
 #Year 4
 Temp0_Year4 = /data/CONUS/active/CONUS.pfclm.1985.run4/averages/averages
-Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-4
+Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/ave-Temp-1.5-Year1-Done4-19
+#Temp1.5_Year4=/data/CONUS/active/Warming_Runs/Temp1.5/averages-Temp-1.5-Year-4
 Temp2_Year4=/data/CONUS/active/Warming_Runs/Temp2/averages-Temp-2-Year-4
 Temp4_Year4=/data/CONUS/active/Warming_Runs/Temp4/averages-Temp-4-Year-4
